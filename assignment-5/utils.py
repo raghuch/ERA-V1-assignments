@@ -11,7 +11,7 @@ train_losses = []
 test_losses = []
 train_acc = []
 test_acc = []
-
+test_incorrect_pred = {'images': [], 'ground_truths': [], 'predicted_vals': []}
 
 def get_device():
     # if torch.cuda.is_available():
@@ -21,17 +21,17 @@ def get_device():
     return "cuda" if torch.cuda.is_available() else "cpu"
 
 def plot_sample_images(train_dataloader):
-    batch_data, batch_label = next(iter(train_loader)) 
+    batch_data, batch_label = next(iter(train_dataloader)) 
 
     fig = plt.figure()
 
     for i in range(12):
-    plt.subplot(3,4,i+1)
-    plt.tight_layout()
-    plt.imshow(batch_data[i].squeeze(0), cmap='gray')
-    plt.title(batch_label[i].item())
-    plt.xticks([])
-    plt.yticks([])
+        plt.subplot(3,4,i+1)
+        plt.tight_layout()
+        plt.imshow(batch_data[i].squeeze(0), cmap='gray')
+        plt.title(batch_label[i].item())
+        plt.xticks([])
+        plt.yticks([])
 
 def get_model_summary(model, sample_input_sz=(1,28,28)):
     # default is for MNIST inputs, should override for other datasets
@@ -44,6 +44,12 @@ def GetCorrectPredCount(pPrediction, pLabels):
   return pPrediction.argmax(dim=1).eq(pLabels).sum().item()
 
 def train(model, device, train_loader, optimizer):
+  train_losses = []
+  #test_losses = []
+  train_acc = []
+  #test_acc = []
+
+
   model.train()
   pbar = tqdm(train_loader)
 
@@ -74,7 +80,16 @@ def train(model, device, train_loader, optimizer):
   train_acc.append(100*correct/processed)
   train_losses.append(train_loss/len(train_loader))
 
+  return train_acc, train_losses
+
 def test(model, device, test_loader):
+    #train_losses = []
+    test_losses = []
+    #train_acc = []
+    test_acc = []
+    test_incorrect_pred = {'images': [], 'ground_truths': [], 'predicted_vals': []}
+
+
     model.eval()
 
     test_loss = 0
@@ -97,8 +112,40 @@ def test(model, device, test_loader):
     print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
+    
+    return test_acc, test_losses
 
 
 
+def get_default_mnist_transforms():
+   train_transforms = transforms.Compose([
+      transforms.RandomApply([transforms.CenterCrop(22), ], p=0.1),
+      transforms.Resize((28, 28)),
+      transforms.RandomRotation((-15., 15.), fill=0),
+      transforms.ToTensor(),
+      transforms.Normalize((0.1307,), (0.3081,)),
+    ])
+
+ # Test data transformations
+   test_transforms = transforms.Compose([
+      transforms.ToTensor(),
+      transforms.Normalize((0.1307,), (0.3081,))
+      ])
+   return train_transforms, test_transforms
+
+
+def get_mnist_dataset():
+   train_transforms, test_transforms = get_default_mnist_transforms()
+   train_data = datasets.MNIST('../data', train=True, download=True, transform=train_transforms)
+   test_data = datasets.MNIST('../data', train=False, download=True, transform=test_transforms)
+
+   return train_data, test_data
+
+def get_data_loaders(train_data, test_data, batch_size):
+   kwargs = {'batch_size': batch_size, 'shuffle': True, 'num_workers': 2, 'pin_memory': True}
+   train_loader = torch.utils.data.DataLoader(train_data, **kwargs)
+   test_loader = torch.utils.data.DataLoader(test_data, **kwargs)
+
+   return train_loader, test_loader
 
 
