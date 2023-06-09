@@ -1,6 +1,13 @@
+## Solution to Assignment-6
+
 This dir contains the solution to assignment-6 in ERA-v1 course. Steps to obtain 99.4% accuracy on MNIST test set within 20k params model size, and in 20 epochs.
 
+### Dataset
+
 Dataset (MNIST) transforms: For training set, normalize, convert to Tensor and random rotate upto 7 degrees. For test set, just normalize and convert to tensor. Used the torchvision transforms library.
+
+### Model architecture
+
 Model: Simple CNN with 4 blocks.
  * initial input block: conv2d (1 channel -> 16 channels, kernel=3, padding=0) -> relu -> batchnorm -> dropout(0.15)
  * conv block 1: conv2d (16 channels -> 32 channels, kernel=3, padding=0) -> relu -> batchnorm -> dropout(0.15)
@@ -14,6 +21,9 @@ Model: Simple CNN with 4 blocks.
 
 Final layer & loss : log_softmax with NLL loss.
 Optimizer: SGD with lr = 0.01, momentum = 0.9. No lr scheduler was used.
+
+### Model size
+
 Model size: torchsummary prints shows 18.5k params as shown in [this notebook](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/assignment6.ipynb)
 
 ----------------------------------------------------------------
@@ -55,12 +65,14 @@ Estimated Total Size (MB): 1.22
 ----------------------------------------------------------------
 
 
+### Train/Test loop
 
 Train and Test loop: Exactly the same as in the reference notebook. The code is divided into the [model.py](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/model.py) which contains the CNN and the [utils.py](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/utils.py) with data loaders, train and test loops in the same dir.
 
 The code is run in the [assignment6.ipynb](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/assignment6.ipynb) file which has training logs. The maximum accuracy is at 19th epoch, printed in the notebook, also shown here:
 
 
+### Maximum accuracy
 
 loss=0.1573498398065567 batch_id=468: 100%|██████████| 469/469 [00:01<00:00, 303.77it/s]  
 
