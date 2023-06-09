@@ -28,7 +28,7 @@ Model size: torchsummary prints shows 18.5k params as shown in [this notebook](h
 
 ----------------------------------------------------------------
         Layer (type)               Output Shape         Param #
-================================================================
+----------------------------------------------------------------
             Conv2d-1           [-1, 16, 26, 26]             144
               ReLU-2           [-1, 16, 26, 26]               0
        BatchNorm2d-3           [-1, 16, 26, 26]              32
@@ -53,19 +53,21 @@ Model size: torchsummary prints shows 18.5k params as shown in [this notebook](h
         Dropout2d-22             [-1, 16, 6, 6]               0
         AvgPool2d-23             [-1, 16, 1, 1]               0
            Conv2d-24             [-1, 10, 1, 1]             160
-================================================================
-Total params: 18,448
-Trainable params: 18,448
-Non-trainable params: 0
-----------------------------------------------------------------
-Input size (MB): 0.00
-Forward/backward pass size (MB): 1.15
-Params size (MB): 0.07
-Estimated Total Size (MB): 1.22
 ----------------------------------------------------------------
 
+Total params: 18,448                                             
+Trainable params: 18,448                                        
+Non-trainable params: 0                                         
 
-### Train/Test loop
+----------------------------------------------------------------
+
+Input size (MB): 0.00                                           
+Forward/backward pass size (MB): 1.15                           
+Params size (MB): 0.07                                          
+Estimated Total Size (MB): 1.22                                     
+
+----------------------------------------------------------------
+
 
 Train and Test loop: Exactly the same as in the reference notebook. The code is divided into the [model.py](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/model.py) which contains the CNN and the [utils.py](https://github.com/raghuch/ERA-V1-assignments/blob/main/assignment-6/utils.py) with data loaders, train and test loops in the same dir.
 
