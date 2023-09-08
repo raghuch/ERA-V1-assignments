@@ -274,21 +274,37 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int
     tgt_pos = PositionalEncoding(d_model,tgt_seq_len, dropout)
 
     print("building encoder_blocks")
-    encoder_blocks = []
-    for _ in range(N):
+    encoder_blocks = [] 
+    for i in range(N//2):
         encoder_self_attention_block = MultiHeadAttentionBlock(d_model,h,dropout)
         feed_forward_block = FeedForwardNetwork(d_model, d_ff, dropout)
         encoder_block = EncoderBlock(encoder_self_attention_block, feed_forward_block, dropout)
-        encoder_blocks.append(encoder_block)
+        encoder_blocks.extend( [encoder_block]*2)
+
+    # for i in range(N//2, N):
+    #     encoder_blocks[i] = encoder_blocks[i - (N//2)]
+    # for i in range(N//2):
+    #     encoder_blocks[(2*i) + 1] = encoder_blocks[2*i]
+
+    # encoder_blocks = [item for sublist in encoder_blocks for item in sublist]
+    #print(encoder_blocks)
+
 
     print("building decoder_blocks")
-    decoder_blocks = []
-    for _ in range(N):
+    decoder_blocks = [] 
+    for i in range(N//2):
         decoder_self_attention_block = MultiHeadAttentionBlock(d_model,h,dropout)
         decoder_cross_attention_block = MultiHeadAttentionBlock(d_model,h,dropout)
         feed_forward_block = FeedForwardNetwork(d_model, d_ff, dropout)
         decoder_block = DecoderBlock(decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
-        decoder_blocks.append(decoder_block)
+        decoder_blocks.extend([decoder_block]*2)
+
+    # for i in range(N//2):
+    #     decoder_blocks[(2*i) + 1] = decoder_blocks[2*i]
+
+    # decoder_blocks = [item for sublist in decoder_blocks for item in sublist]
+    # print(decoder_blocks)
+
 
     print("Build Encoder and Decoder")
     encoder = Encoder(nn.ModuleList(encoder_blocks))

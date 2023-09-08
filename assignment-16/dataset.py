@@ -68,7 +68,9 @@ class BiLingualDataset(Dataset):
             "src_text": src_text,
             "tgt_text": tgt_text,
             "raw_decoder_mask": (decoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(),
-            "causal_mask": causal_mask(decoder_input.size(0))
+            "causal_mask": causal_mask(decoder_input.size(0)),
+            "encoder_str_length": len(enc_input_tokens),
+            "decoder_str_length": len(dec_input_tokens)
         }
     
 def causal_mask(size):

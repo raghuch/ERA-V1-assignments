@@ -20,6 +20,7 @@ from tokenizers.pre_tokenizers import Whitespace
 
 import torchmetrics
 from torch.utils.tensorboard.writer import SummaryWriter
+from torchsummary import summary
 
 
 
@@ -186,10 +187,41 @@ def get_ds(config):
     print(f'Max length of source sentence: {max_len_src}')
     print(f'Max length of target sentence: {max_len_tgt}')
 
-    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,num_workers = 16)
+    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,num_workers = 16, collate_fn=collate_fn_dynamic_padding)
     val_dataloader = DataLoader(val_ds, batch_size = 1,shuffle=True,num_workers = 16)
 
     return train_dataloader,val_dataloader, tokenizer_src, tokenizer_tgt
+
+def collate_fn_dynamic_padding(batch):
+    encoder_input_max = max(x["encoder_str_length"] for x in batch)
+    decoder_input_max = max(x["decoder_str_length"] for x in batch)
+
+    encoder_inputs = []
+    decoder_inputs = []
+    encoder_mask = []
+    decoder_mask = []
+    label = []
+    src_text = []
+    tgt_text = []
+
+    for b in batch:
+        encoder_inputs.append(b["encoder_input"][:encoder_input_max])
+        decoder_inputs.append(b["decoder_input"][:decoder_input_max])
+        encoder_mask.append(b["encoder_mask"][0, 0, :encoder_input_max].unsqueeze(0).unsqueeze(0).unsqueeze(0))
+        decoder_mask.append(b["decoder_mask"][0, :decoder_input_max, :decoder_input_max].unsqueeze(0).unsqueeze(0))
+        label.append(b["label"][:decoder_input_max])
+        src_text.append(b["src_text"])
+        tgt_text.append(b["tgt_text"])
+
+    return {
+        "encoder_input": torch.vstack(encoder_inputs),
+        "decoder_input": torch.vstack(decoder_inputs),
+        "encoder_mask": torch.vstack(encoder_mask),
+        "decoder_mask": torch.vstack(decoder_mask),
+        "label": torch.vstack(label),
+        "src_text": src_text,
+        "tgt_text": tgt_text
+    }
 
 def train_model(config):
 
@@ -201,6 +233,9 @@ def train_model(config):
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
 
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
+
+    scaler = torch.cuda.amp.grad_scaler.GradScaler()
+    lr = [0.0]
 
     writer = SummaryWriter(config['experiment_name'])
     optimizer = torch.optim.Adam(model.parameters(), lr = config['lr'], eps = 1e-6)
@@ -219,6 +254,9 @@ def train_model(config):
         print('preloaded')
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=config['MAX_LR'], steps_per_epoch=len(train_dataloader), epochs=config['num_epochs'],
+                                                    pct_start=int(0.3*config['num_epochs'])/config['num_epochs'] if config['num_epochs']!=1 else 0.5,
+                                                    div_factor=100, three_phase=False, final_div_factor=100, anneal_strategy='linear')
 
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
@@ -233,21 +271,31 @@ def train_model(config):
           decoder_mask  = batch['decoder_mask'].to(device)  # (B, 1, seq_len, seq_len)
 
           #Run tensors thru encoder, decoder  and projection layer
-          encoder_output = model.encode(encoder_input, encoder_mask)
-          decoder_output = model.decode(encoder_output, encoder_mask,decoder_input, decoder_mask)
-          proj_output = model.project(decoder_output)
+          with torch.autocast(device_type="cuda", dtype=torch.float16):
+            encoder_output = model.encode(encoder_input, encoder_mask)
+            decoder_output = model.decode(encoder_output, encoder_mask,decoder_input, decoder_mask)
+            proj_output = model.project(decoder_output)
 
-          label = batch['label'].to(device)
+            label = batch['label'].to(device)
 
-          loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+            loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+
           batch_iterator.set_postfix({"loss": f"{loss.item():6.3f}"})
 
           writer.add_scalar('train loss',loss.item(), global_step)
           writer.flush()
 
-          loss.backward()
+          #loss.backward()
+          scaler.scale(loss).backward()
 
-          optimizer.step()
+          #optimizer.step()
+          scale = scaler.get_scale()
+          scaler.step(optimizer)
+          scaler.update()
+          skip_lr_scheduler = (scale > scaler.get_scale())
+          if not skip_lr_scheduler:
+              scheduler.step()
+          lr.append(scheduler.get_last_lr())
           optimizer.zero_grad(set_to_none=True)
 
           global_step += 1
