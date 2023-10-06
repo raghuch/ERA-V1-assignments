@@ -53,14 +53,19 @@ class ExpandBlk(nn.Module):
             nn.ReLU(inplace=True)
         )
         if use_upsample:
-            self.upscale = nn.Upsample(scale_factor=2, mode='nearest')
+            self.upscale = nn.Sequential(nn.Upsample(scale_factor=2, mode='nearest'),
+                                         nn.Conv2d(in_channels, in_channels//2, kernel_size=1))
         else:
             self.upscale = nn.ConvTranspose2d(in_channels, in_channels//2, kernel_size=2, stride=2)
 
     def forward(self, x, res):
+        # print("In expand Block-------")
+        # print("Shape of input x:", x.shape)
         x = self.upscale(x)
         conv = torch.cat((x, res), dim=1)
+        #print("Shape after concat:", conv.shape)
         out = self.conv_blk(conv)
+        #print("Shape after conact and conv:", out.shape)
 
         #conv = self.upscale(conv)
         #out = torch.cat((conv, res), dim=1)
@@ -101,22 +106,6 @@ class UNet(pl.LightningModule):
         x9 = self.final_conv1(x9)
         return self.final_conv2(x9)
     
-    # def data_prep(self) -> None:
-    #     self.train_data = datasets.OxfordIIITPet(root="~/work/data/", download=True, split='trainval', target_types='segmentation', transform=transforms.ToTensor())
-    #     self.val_data = datasets.OxfordIIITPet(root="~/work/data/", download=True, split='test' ,target_types='segmentation', transform=transforms.ToTensor())
-
-    # def setup(self, stage: str) -> None:
-
-    #     if stage == 'train':
-
-        
-    
-    # def train_dataloader(self) -> TRAIN_DATALOADERS:
-    #     return torch.utils.data.DataLoader(self.train_data, batch_size=128, shuffle=True)
-    
-    
-    # def val_dataloader(self) -> EVAL_DATALOADERS:
-    #     return torch.utils.data.DataLoader(self.val_data, batch_size=128, shuffle=False)
     
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.Adam(self.parameters(), lr=5e-4)
@@ -139,6 +128,7 @@ class UNet(pl.LightningModule):
             loss = nn.BCEWithLogitsLoss()(y_hat, y)
         #loss = F.cross_entropy(y_hat, y)
         logs = {'train_loss': loss}
+        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
 
         return {'loss': loss, 'log': logs}
     
@@ -149,6 +139,7 @@ class UNet(pl.LightningModule):
             loss = self._dice_loss(y, y_hat)
         else:
             loss = nn.BCEWithLogitsLoss()(y_hat, y)
+        self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
         return {'val_loss': loss}
     
     
