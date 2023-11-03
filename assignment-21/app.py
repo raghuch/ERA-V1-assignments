@@ -7,7 +7,7 @@ import torch
 
 def generate_nanogpt_text():
     model = BigramLanguageModel(vocab_size=65, n_embed=n_embed, block_size=BLOCK_SIZE, num_heads=n_head, n_layers=n_layer)
-    ckpt = torch.load(os.path.join("./nano_gpt_ckpts", "ckpt_5k_iters.pt"))
+    ckpt = torch.load(os.path.join("./nano_gpt_ckpts", "ckpt_5k_iters.pt"), map_location=torch.device('cpu'))
     model.load_state_dict(ckpt['model'])
 
     char_tokenizer = load_int_char_tokenizer(load_text())
@@ -30,7 +30,7 @@ with  gr.Blocks() as demo:
    The model checkpoint is the 'nano_gpt_ckpts' dir. The hyper params used are the exact same shown in the nano-gpt video by Karpathy, and the dataset size is just 1MB, so the text generated could be gibberish.
 
    Keep in mind the output is limited to 400 tokens so the inference runs within reasonable time (10s) on CPU. (Huggingface free tier)
-   
+
    GPU inference can output much much longer sequences.
    Click on the "Generate text" button to see the generated text. 
     """)
@@ -38,4 +38,4 @@ with  gr.Blocks() as demo:
     output = gr.Textbox(label="Generated text from nano-gpt")
     generate_button.click(fn=generate_nanogpt_text, inputs=None, outputs=output, api_name='nano-gpt text generation sample')
 
-demo.launch(share=True)
+demo.launch()
