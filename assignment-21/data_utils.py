@@ -1,5 +1,4 @@
 from typing import List
-from sklearn.base import validate_parameter_constraints
 import torch
 
 from tokenizer_utils import IntCharTokenizer
